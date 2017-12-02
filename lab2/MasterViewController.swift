@@ -16,12 +16,21 @@ class MasterViewController: UITableViewController {
     var objects = [String]()
     
     var titleToContent: [String:String]!
+    
+    var sessionManager:SessionManager!
+    var alertController:UIAlertController!
 
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
         titleToContent = [String:String]()
+        
+        //set up the sessionManager for sending http request(setting timeout to be 4 seconds)
+        let configuration = URLSessionConfiguration.default
+        //5 seconds time out if no respond gets back from the request
+        configuration.timeoutIntervalForRequest = 4
+        sessionManager = Alamofire.SessionManager(configuration: configuration)
         
         let thisBaseUrl = "https://swapi.co/api/films/"
         
@@ -30,24 +39,33 @@ class MasterViewController: UITableViewController {
         let headers: HTTPHeaders = ["Accept": "application/json"]
         
         //sending request
-        Alamofire.request(thisBaseUrl, headers: headers).responseJSON { [weak self] response in
-            
-            let re = response.result.value! as? [String:Any]
-            
-            //array of films
-            let res = re!["results"] as? [Any]
-            
-            for one in res! {
-                let o = one as! [String: Any]
-                let title = o["title"] as! String
+        sessionManager.request(thisBaseUrl, headers: headers).validate().responseJSON { [weak self] response in
+            switch response.result {
+                case .success:
+                    let re = response.result.value! as? [String:Any]
                 
-                let opencrawl = o["opening_crawl"] as! String
+                    //array of films
+                    let res = re!["results"] as? [Any]
                 
-                self?.insertNewObject(o: title)
-                
-                self?.titleToContent.updateValue(opencrawl, forKey: title)
-               // print(t)
-                //print(opencrawl)
+                    for one in res! {
+                        let o = one as! [String: Any]
+                        let title = o["title"] as! String
+                        
+                        let opencrawl = o["opening_crawl"] as! String
+                        
+                        self?.insertNewObject(o: title)
+                        
+                        self?.titleToContent.updateValue(opencrawl, forKey: title)
+                       // print(t)
+                        //print(opencrawl)
+                    
+                }
+                case .failure(let error):
+                    print(error)
+                    self?.alertController = UIAlertController(title: "Error", message: "Something went wrong.", preferredStyle: .alert)
+                    let cancelAction = UIAlertAction(title: "Dismiss", style: .cancel)
+                    self?.alertController.addAction(cancelAction)
+                    self?.present((self?.alertController)!, animated: true)
             }
             
             
